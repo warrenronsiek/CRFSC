@@ -1,7 +1,7 @@
 import org.apache.spark.sql.{DataFrame, SQLContext, SparkSession, Row => SRow}
 import org.apache.spark.rdd.RDD
 import java.io.FileInputStream
-
+import java.lang.NullPointerException
 import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
@@ -22,22 +22,26 @@ val spark = SparkSession
   .config("spark.master", "local")
   .getOrCreate()
 val sqlContext = spark.sqlContext
+
 import spark.implicits._
 import sqlContext.implicits._
 
-
-
-def getCellValue(cell: Cell): Any = {
-  evaluator.evaluateFormulaCell(cell) match {
-    case CellType.BOOLEAN => cell.getBooleanCellValue
-    case CellType.STRING => cell.getStringCellValue
-    case CellType.NUMERIC => cell.getNumericCellValue
-    case _ => None
+def getCellValue(cell: Cell): Option[Any] = {
+  val evaledCell = evaluator.evaluate(cell)
+  try {
+    evaledCell.getCellType match {
+      case CellType.BOOLEAN => Some(evaledCell.getBooleanValue)
+      case CellType.STRING => Some(evaledCell.getStringValue)
+      case CellType.NUMERIC => Some(evaledCell.getNumberValue)
+      case _ => None
+    }
+  } catch {
+    case nullEx: NullPointerException => None
   }
 }
 
 val lst: List[List[Any]] = sheet map { row: Row =>
-  row.asScala map {cell: Cell => getCellValue(cell)} toList
+  row.asScala map { cell: Cell => getCellValue(cell) } toList
 } toList
 
 System.out.println(lst.toDF)
