@@ -26,6 +26,20 @@ val sqlContext = spark.sqlContext
 import spark.implicits._
 import sqlContext.implicits._
 
+//def getCellValue(cell: Cell): Option[Any] = {
+//  val evaledCell = evaluator.evaluate(cell)
+//  try {
+//    evaledCell.getCellType match {
+//      case CellType.BOOLEAN => Some(evaledCell.getBooleanValue)
+//      case CellType.STRING => Some(evaledCell.getStringValue)
+//      case CellType.NUMERIC => Some(evaledCell.getNumberValue)
+//      case _ => None
+//    }
+//  } catch {
+//    case nullEx: NullPointerException => None
+//  }
+//}
+
 def getCellValue(cell: Cell): Option[Any] = {
   val evaledCell = evaluator.evaluate(cell)
   try {
@@ -40,8 +54,9 @@ def getCellValue(cell: Cell): Option[Any] = {
   }
 }
 
-val lst: List[List[Any]] = sheet map { row: Row =>
-  row.asScala map { cell: Cell => getCellValue(cell) } toList
-} toList
 
-System.out.println(lst.toDF)
+val lst = sheet map { row: Row =>
+  SRow.fromSeq(row.asScala map { cell: Cell => getCellValue(cell) } toSeq)
+} toSeq
+
+RDD(lst)
