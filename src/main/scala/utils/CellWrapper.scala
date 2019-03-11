@@ -38,5 +38,11 @@ class CellWrapper(cell: Cell, wb: HSSFWorkbook) {
     }
   }
 
+  def alignment: HorizontalAlignment = cell.getCellStyle.getAlignment
+
   override def toString: String = this.value.toString
+
+  def +(cellWrapper: CellWrapper): String = this.toString + cellWrapper.toString
+
+  def +(s: String): String = this.toString + s
 }

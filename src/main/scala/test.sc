@@ -19,19 +19,39 @@ val vallst = sheet map { row: Row =>
 
 class SheetWrapper(wb: HSSFWorkbook) {
   val sheet = wb.getSheetAt(0).asScala
-  val valueList = sheet map { row: Row => row.asScala map { cell: Cell => new CellWrapper(cell, wb) }}
+  val valueList = sheet map { row: Row => row.asScala map { cell: Cell => new CellWrapper(cell, wb) } }
   val mergedCells = wb.getSheetAt(0).getMergedRegions
-  val ncols = sheet map {row => row.getLastCellNum} max
+  val ncols = sheet map { row => row.getLastCellNum } max
   val nrows = sheet size
+
+  implicit class CellList(row: List[CellWrapper]) {
+    def getRowString: String = row.foldLeft(" ")({(a: String, b: CellWrapper) => b.toString + a })
+
+    def getValueList: List[String] = row map { c => c.toString }
+
+    def alignments(row: List[CellWrapper]): List[HorizontalAlignment] = row map {c => c.alignment}
+  }
 
   override def toString: String = this.valueList.toString
 
   def isStringRowFeature(row: List[CellWrapper]): Boolean =
-    List(CellTypeSC.STR) == {row map {cell => cell.valueType} distinct}
+    List(CellTypeSC.STR) == {
+      row map { cell => cell.valueType } distinct
+    }
+
+  def isBoolRowFeature(row: List[CellWrapper]): Boolean =
+    List(CellTypeSC.BOOL) == {
+      row map { cell => cell.valueType } distinct
+    }
+
+  def highWordCountFeature(row: List[CellWrapper]): Boolean =
+    row.getRowString.split(" ").groupBy(identity).mapValues(_.length).maxBy(_._2)._2 >= 2
+
+  def longWordFeature(row: List[CellWrapper]): Boolean = row.getValueList.map(_.length).max >= 40.
+
+
 
 }
-
 val s = new SheetWrapper(wb)
 val s2 = wb.getSheetAt(0)
 val cellrange = s2.getMergedRegions()(1)
-cellrange.
