@@ -18,37 +18,41 @@ class SheetWrapper(wb: HSSFWorkbook) {
   val ncols: Int = sheet map { row => row.getLastCellNum } max
   val nrows: Int = sheet.size
 
-  implicit class CellList(row: List[CellWrapper]) {
-    def getRowString: String = row.foldLeft(" ")({(a: String, b: CellWrapper) => b.toString + a })
-
-    def getValueList: List[String] = row map { c => c.toString }
-
-    def alignments(row: List[CellWrapper]): List[HorizontalAlignment] = row map {c => c.alignment}
-  }
-
-  implicit def boolToInt(b: Boolean): Int = if (b) 1 else 0
-
   override def toString: String = this.valueList.toString
 
-  def isStringRowFeature(row: Iterable[CellWrapper]): Boolean =
-    List(CellTypeSC.STR) == {row.map(_.valueType).toList.distinct}
-
-  def isBoolRowFeature(row: Iterable[CellWrapper]): Boolean =
-    List(CellTypeSC.BOOL) == {row.map(_.valueType).toList.distinct}
-
-  def highWordCountFeature(row: List[CellWrapper]): Boolean =
-    row.getRowString.split(" ").groupBy(identity).mapValues(_.length).maxBy(_._2)._2 >= 2
-
-  def longWordFeature(row: List[CellWrapper]): Boolean = row.getValueList.map(_.length).max >= 40
-
   def buildFeatureMatrix(): DenseMatrix[Int] = {
-    DenseMatrix(valueList.map(this.isBoolRowFeature).map(boolToInt).toList).t
+    DenseMatrix({
+      for(func <- SheetWrapper.featureFunctions; row <- valueList) yield {
+        if (func(row)) 1 else 0
+      }
+    }).reshape(this.nrows, SheetWrapper.featureFunctions.length)
   }
 
 }
 
 object SheetWrapper {
-  val featureFunctions: List[(Iterable[CellWrapper]) => Boolean] = {
 
+  implicit class CellList(row: Iterable[CellWrapper]) {
+    def getRowString: String = row.foldLeft(" ")({(a: String, b: CellWrapper) => b.toString + a })
+
+    def getValueList: List[String] = row.toList.map { c => c.toString }
+
+    def alignments(row: List[CellWrapper]): List[HorizontalAlignment] = row map {c => c.alignment}
   }
+
+  val isStringRow: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) =>
+    List(CellTypeSC.STR) == {row.map(_.valueType).toList.distinct}
+  val isBoolRow: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) =>
+    List(CellTypeSC.BOOL) == {row.map(_.valueType).toList.distinct}
+  val highWordCount: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) =>
+  {row.getRowString.split(" ").groupBy(identity).mapValues(_.length).maxBy(_._2)._2 >= 2}
+  val longWords: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) => row.getValueList.map(_.length).max >= 40
+
+  val featureFunctions: List[Iterable[CellWrapper] => Boolean] = List(
+    isStringRow,
+    isBoolRow,
+    highWordCount,
+    longWords
+  )
+
 }
