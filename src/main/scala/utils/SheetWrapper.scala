@@ -21,13 +21,12 @@ class SheetWrapper(wb: HSSFWorkbook) {
   override def toString: String = this.valueList.toString
 
   def buildFeatureMatrix(): DenseMatrix[Int] = {
-    DenseMatrix({
+    DenseMatrix(
       for(func <- SheetWrapper.featureFunctions; row <- valueList) yield {
         if (func(row)) 1 else 0
       }
-    }).reshape(this.nrows, SheetWrapper.featureFunctions.length)
+    ).reshape(this.nrows, SheetWrapper.featureFunctions.length)
   }
-
 }
 
 object SheetWrapper {
@@ -45,7 +44,7 @@ object SheetWrapper {
   val isBoolRow: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) =>
     List(CellTypeSC.BOOL) == {row.map(_.valueType).toList.distinct}
   val highWordCount: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) =>
-  {row.getRowString.split(" ").groupBy(identity).mapValues(_.length).maxBy(_._2)._2 >= 2}
+    {row.getRowString.split(" ").groupBy(identity).mapValues(_.length).maxBy(_._2)._2 >= 2}
   val longWords: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) => row.getValueList.map(_.length).max >= 40
 
   val featureFunctions: List[Iterable[CellWrapper] => Boolean] = List(
@@ -54,5 +53,4 @@ object SheetWrapper {
     highWordCount,
     longWords
   )
-
 }

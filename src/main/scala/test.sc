@@ -1,6 +1,8 @@
 import java.io.FileInputStream
 import java.lang.NullPointerException
 
+import breeze.linalg.DenseMatrix
+
 import scala.collection.JavaConversions._
 import org.apache.poi.hssf.usermodel.{HSSFFormulaEvaluator, HSSFSheet, HSSFWorkbook}
 import org.apache.poi.ss.usermodel._
@@ -21,3 +23,6 @@ val s = new SheetWrapper(wb)
 s.buildFeatureMatrix()
 val s2 = wb.getSheetAt(0)
 val cellrange = s2.getMergedRegions()(1)
+
+
+DenseMatrix(for (i <- List(1, 2); j <- List(3, 4, 5)) yield i + j).reshape(3, 2)
