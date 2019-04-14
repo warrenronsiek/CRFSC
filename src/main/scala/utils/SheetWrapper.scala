@@ -22,7 +22,7 @@ class SheetWrapper(wb: HSSFWorkbook) {
 
   def buildFeatureMatrix(): DenseMatrix[Int] = {
     DenseMatrix(
-      for(func <- SheetWrapper.featureFunctions; row <- valueList) yield {
+      for (func <- SheetWrapper.featureFunctions; row: Iterable[CellWrapper] <- valueList) yield {
         if (func(row)) 1 else 0
       }
     ).reshape(this.nrows, SheetWrapper.featureFunctions.length)
@@ -32,20 +32,38 @@ class SheetWrapper(wb: HSSFWorkbook) {
 object SheetWrapper {
 
   implicit class CellList(row: Iterable[CellWrapper]) {
-    def getRowString: String = row.foldLeft(" ")({(a: String, b: CellWrapper) => b.toString + a })
+    def getRowString: String = row.foldLeft(" ")({ (a: String, b: CellWrapper) => b.toString + a })
 
     def getValueList: List[String] = row.toList.map { c => c.toString }
 
-    def alignments(row: List[CellWrapper]): List[HorizontalAlignment] = row map {c => c.alignment}
+    def alignments(row: List[CellWrapper]): List[HorizontalAlignment] = row map { c => c.alignment }
   }
 
+  private def sliding3Iter(cellOperator: (CellWrapper, CellWrapper, CellWrapper) => Boolean, sheet: Iterable[Iterable[CellWrapper]]): List[Boolean] = {
+    val rowOperator: (Iterable[CellWrapper], Iterable[CellWrapper], Iterable[CellWrapper]) => Iterable[Boolean] = (previousRow, currentRow, nextRow) =>
+      previousRow zip currentRow zip nextRow map { case ((i,c),s) => cellOperator(i,c,s)}
+    sheet.sliding(3).collect { case ls if ls.size == 3 => rowOperator(ls(0), ls(1), ls(2)) }
+  }
+
+
   val isStringRow: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) =>
-    List(CellTypeSC.STR) == {row.map(_.valueType).toList.distinct}
+    List(CellTypeSC.STR) == {
+      row.map(_.valueType).toList.distinct
+    }
   val isBoolRow: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) =>
-    List(CellTypeSC.BOOL) == {row.map(_.valueType).toList.distinct}
-  val highWordCount: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) =>
-    {row.getRowString.split(" ").groupBy(identity).mapValues(_.length).maxBy(_._2)._2 >= 2}
+    List(CellTypeSC.BOOL) == {
+      row.map(_.valueType).toList.distinct
+    }
+  val highWordCount: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) => {
+    row.getRowString.split(" ").groupBy(identity).mapValues(_.length).maxBy(_._2)._2 >= 2
+  }
   val longWords: Iterable[CellWrapper] => Boolean = (row: Iterable[CellWrapper]) => row.getValueList.map(_.length).max >= 40
+
+  def neighborRowsAreStrings(rowIterator: Iterable[Iterable[CellWrapper]]): Boolean = {
+    val neighborCellsAreStrings: (CellWrapper, CellWrapper, CellWrapper) => Boolean =
+      (preceding, current, subsequent) => (preceding.valueType == CellTypeSC.STR) && (subsequent.valueType == CellTypeSC.STR)
+    sliding3Iter[Iterable[CellWrapper], Boolean](neighborCellsAreStrings, rowIterator).reduce(_ && _)
+  }
 
   val featureFunctions: List[Iterable[CellWrapper] => Boolean] = List(
     isStringRow,
